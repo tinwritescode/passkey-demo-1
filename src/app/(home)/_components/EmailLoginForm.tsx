@@ -25,6 +25,32 @@ export const EmailLoginForm = () => {
     );
   };
 
+  const verifiyAndLogin = async ({ userId }: { userId: string }) => {
+    const authOptions =
+      await trpcClient.auth.passkey.generateAuthenticationOptions.mutate({
+        userId,
+      });
+
+    const webAuthnResponse = await startAuthentication({
+      optionsJSON: authOptions,
+    });
+
+    if (!webAuthnResponse) {
+      return;
+    }
+
+    const verification =
+      await trpcClient.auth.passkey.verifyAuthentication.mutate({
+        userId,
+        response: webAuthnResponse,
+      });
+
+    if (verification.verified) {
+      setAccessToken(verification.accessToken);
+    }
+  };
+
+  // from parent: parent -> iframe
   useEffect(() => {
     const event = async (event: MessageEvent) => {
       console.log("event", event);
@@ -47,28 +73,7 @@ export const EmailLoginForm = () => {
           return;
         }
 
-        const authOptions =
-          await trpcClient.auth.passkey.generateAuthenticationOptions.mutate({
-            userId,
-          });
-
-        const webAuthnResponse = await startAuthentication({
-          optionsJSON: authOptions,
-        });
-
-        if (!webAuthnResponse) {
-          return;
-        }
-
-        const verification =
-          await trpcClient.auth.passkey.verifyAuthentication.mutate({
-            userId,
-            response: webAuthnResponse,
-          });
-
-        if (verification.verified) {
-          setAccessToken(verification.accessToken);
-        }
+        verifiyAndLogin({ userId });
       }
     };
 
@@ -78,6 +83,50 @@ export const EmailLoginForm = () => {
     return () => {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       window.removeEventListener("message", event);
+    };
+  }, []);
+
+  // from parent: parent -> popup
+  useEffect(() => {
+    // Type the event handler properly
+    const handleMessage = async (event: MessageEvent) => {
+      // Verify the origin if needed
+      // if (event.origin !== "expected_origin") return;
+
+      try {
+        const data = z
+          .object({ type: z.literal("TRIGGER_AUTHN"), value: z.string() })
+          .safeParse(event.data);
+
+        if (!data.success) {
+          return;
+        }
+
+        if (data.data.type === "TRIGGER_AUTHN") {
+          console.log("Received authentication trigger:", data.data.value);
+          // Handle the authentication logic here
+
+          // the same logic as in useEffect above
+          const userId = useAccessTokenStore.getState().userId;
+          if (!userId) {
+            return;
+          }
+
+          verifiyAndLogin({ userId });
+        }
+      } catch (error) {
+        console.error("Error processing message:", error);
+      }
+    };
+
+    // Add the event listener
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    window.addEventListener("message", handleMessage);
+
+    // Cleanup
+    return () => {
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      window.removeEventListener("message", handleMessage);
     };
   }, []);
 
