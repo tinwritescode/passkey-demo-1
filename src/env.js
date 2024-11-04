@@ -20,9 +20,7 @@ export const env = createEnv({
    * isn't built with invalid env vars. To expose them to the client, prefix them with
    * `NEXT_PUBLIC_`.
    */
-  client: {
-    NEXT_PUBLIC_RP_ID: z.string().min(1),
-  },
+  client: {},
 
   /**
    * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
@@ -32,7 +30,6 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     JWT_SECRET: process.env.JWT_SECRET,
-    NEXT_PUBLIC_RP_ID: process.env.NEXT_PUBLIC_RP_ID,
     REDIS_URL: process.env.REDIS_URL,
   },
   /**
