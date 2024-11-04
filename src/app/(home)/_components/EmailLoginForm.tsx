@@ -70,9 +70,11 @@ export const EmailLoginForm = () => {
       }
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     window.addEventListener("message", event);
 
     return () => {
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       window.removeEventListener("message", event);
     };
   }, []);
