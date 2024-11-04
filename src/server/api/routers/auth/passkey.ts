@@ -21,10 +21,11 @@ import {
 import { db } from "../../../db";
 import jwtService from "../../services/jwt";
 import redisService from "../../services/redis";
+import { env } from "../../../../env";
 
 // These would typically come from environment variables
-const rpID = "localhost";
-const expectedOrigin = "http://localhost:3000";
+const rpID = env.NEXT_PUBLIC_RP_ID;
+const expectedOrigin = env.NEXT_PUBLIC_EXPECTED_ORIGIN;
 const rpName = "Your App Name";
 
 export const passkeyRouter = createTRPCRouter({
