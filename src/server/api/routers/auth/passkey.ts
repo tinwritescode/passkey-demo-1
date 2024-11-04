@@ -1,27 +1,26 @@
 import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+  type GenerateAuthenticationOptionsOpts,
+  type GenerateRegistrationOptionsOpts,
+} from "@simplewebauthn/server";
+import {
+  type AuthenticationResponseJSON,
+  type AuthenticatorTransportFuture,
+  type RegistrationResponseJSON,
+  type WebAuthnCredential,
+} from "@simplewebauthn/types";
+import { z } from "zod";
+import {
   createTRPCRouter,
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import { z } from "zod";
-import {
-  generateRegistrationOptions,
-  verifyRegistrationResponse,
-  verifyAuthenticationResponse,
-  GenerateAuthenticationOptionsOpts,
-  generateAuthenticationOptions,
-  GenerateRegistrationOptionsOpts,
-} from "@simplewebauthn/server";
-import {
-  AuthenticationResponseJSON,
-  AuthenticatorTransportFuture,
-  RegistrationResponseJSON,
-  WebAuthnCredential,
-} from "@simplewebauthn/types";
 import { db } from "../../../db";
-import redisService from "../../services/redis";
-import pick from "lodash.pick";
 import jwtService from "../../services/jwt";
+import redisService from "../../services/redis";
 
 // These would typically come from environment variables
 const rpID = "localhost";
@@ -78,7 +77,7 @@ export const passkeyRouter = createTRPCRouter({
       const options = await generateRegistrationOptions(opts);
 
       // Store challenge in session/db
-      redisService.redis.set(
+      await redisService.redis.set(
         `user:${ctxUser.userId}:currentChallenge`,
         options.challenge,
         "EX",
@@ -99,12 +98,6 @@ export const passkeyRouter = createTRPCRouter({
       if (!ctxUser) {
         throw new Error("User not found");
       }
-
-      const user = await db.user.findUniqueOrThrow({
-        where: {
-          id: ctxUser.userId,
-        },
-      });
 
       const currentChallenge = await redisService.redis.get(
         `user:${ctxUser.userId}:currentChallenge`,
@@ -206,7 +199,7 @@ export const passkeyRouter = createTRPCRouter({
       const options = await generateAuthenticationOptions(opts);
 
       // Store challenge
-      redisService.redis.set(
+      await redisService.redis.set(
         `user:${input.userId}:currentChallenge`,
         options.challenge,
         "EX",

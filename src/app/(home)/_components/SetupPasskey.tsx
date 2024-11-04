@@ -45,7 +45,7 @@ export const SetupPasskey = () => {
   // Delete passkey
   const { mutate: deletePasskey } = api.auth.passkey.deletePasskey.useMutation({
     onSuccess: () => {
-      utils.auth.passkey.getPasskeys.invalidate();
+      void utils.auth.passkey.getPasskeys.invalidate();
       setError(null);
     },
     onError: (err) => {

@@ -11,7 +11,7 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { db } from "~/server/db";
-import jwtService, { JWTTokenPayload } from "./services/jwt";
+import jwtService, { type JWTTokenPayload } from "./services/jwt";
 
 /**
  * 1. CONTEXT

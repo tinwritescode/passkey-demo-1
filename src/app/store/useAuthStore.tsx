@@ -1,10 +1,7 @@
 "use client";
-import { api, RouterOutputs } from "~/trpc/react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { TRPCError } from "@trpc/server";
-import { TRPCClientError } from "@trpc/client";
-import { TRPCErrorShape } from "@trpc/server/rpc";
+import { api } from "~/trpc/react";
 
 export const useAccessTokenStore = create<{
   accessToken: string | null;
@@ -41,7 +38,7 @@ export const useAuthStore = () => {
         setAccessToken(data.accessToken);
         setUserId(data.user.userId);
 
-        utils.invalidate();
+        void utils.invalidate();
       },
     });
 
@@ -51,7 +48,7 @@ export const useAuthStore = () => {
         setAccessToken(data.accessToken);
         setUserId(data.user.userId);
 
-        utils.invalidate();
+        void utils.invalidate();
       },
     });
 

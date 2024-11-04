@@ -1,7 +1,7 @@
 "use client";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { useEffect, useState } from "react";
-import { api, trpcClient } from "~/trpc/react";
+import { trpcClient } from "~/trpc/react";
 import { useAccessTokenStore, useAuthStore } from "../../store/useAuthStore";
 
 export const EmailLoginForm = () => {
@@ -25,7 +25,7 @@ export const EmailLoginForm = () => {
   };
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       if (
         typeof window.PublicKeyCredential !== "undefined" &&
         typeof window.PublicKeyCredential.isConditionalMediationAvailable ===
@@ -96,6 +96,7 @@ export const EmailLoginForm = () => {
         }
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

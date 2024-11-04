@@ -6,15 +6,15 @@ import { SetupPasskey } from "./SetupPasskey";
 export const LoggedIn = () => {
   const { logout } = useAuthStore();
   const { mutate: deleteAccount } = api.auth.deleteAccount.useMutation({
-    onSuccess: () => {
-      logout();
+    onSuccess: async () => {
+      await logout();
     },
   });
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100">
       <div className="w-full max-w-2xl rounded-lg bg-white p-8 text-center shadow-md">
-        <h1 className="mb-4 text-2xl font-bold">Partner's dapp</h1>
+        <h1 className="mb-4 text-2xl font-bold">Partner&apos;s dapp</h1>
         <p className="mb-6 text-gray-600">You are successfully logged in.</p>
 
         <SetupPasskey />
