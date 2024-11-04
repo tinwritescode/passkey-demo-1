@@ -33,6 +33,8 @@ export const EmailLoginForm = () => {
         .object({ type: z.literal("TRIGGER_AUTHN"), value: z.string() })
         .safeParse(event.data);
 
+      // we don't use the value for now, just for testing that it should be passed by the parent
+
       if (!data.success) {
         return;
       }
@@ -47,7 +49,7 @@ export const EmailLoginForm = () => {
 
         const authOptions =
           await trpcClient.auth.passkey.generateAuthenticationOptions.mutate({
-            userId: data.data.value,
+            userId,
           });
 
         const webAuthnResponse = await startAuthentication({
@@ -60,7 +62,7 @@ export const EmailLoginForm = () => {
 
         const verification =
           await trpcClient.auth.passkey.verifyAuthentication.mutate({
-            userId: data.data.value,
+            userId,
             response: webAuthnResponse,
           });
 
