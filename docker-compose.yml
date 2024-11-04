@@ -1,0 +1,15 @@
+# a postgres db
+services:
+  db:
+    image: postgres:16
+    ports:
+      - 5439:5432 # public port:private port
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+
+  redis:
+    image: redis:latest
+    ports:
+      - 6479:6379

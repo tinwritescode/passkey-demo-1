@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id       String @id @default(uuid())
+    username String @unique
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    Provider Provider[]
+
+    @@map("users")
+}
+
+enum ProviderType {
+    EMAIL
+    WEB_AUTHN_CREDENTIAL
+}
+
+model Provider {
+    id     String @id @default(uuid())
+    User   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId String
+
+    type ProviderType
+
+    // 1-1 relationship with WebAuthnCredential
+    WebAuthnCredential WebAuthnCredential?
+    EmailCredential    EmailCredential?
+}
+
+model WebAuthnCredential {
+    id         String   @id @default(uuid())
+    publicKey  Bytes
+    counter    BigInt
+    transports String[] // Stored as JSON array
+    Provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+    providerId String   @unique
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("credentials")
+}
+
+model EmailCredential {
+    id             String   @id @default(uuid())
+    email          String   @unique
+    hashedPassword String
+    Provider       Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+    providerId     String   @unique
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
