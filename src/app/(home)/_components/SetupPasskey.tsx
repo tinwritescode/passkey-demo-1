@@ -62,7 +62,9 @@ export const SetupPasskey = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Passkey Management</h2>
         <button
-          onClick={() => generateRegistration()}
+          onClick={() => {
+            return generateRegistration();
+          }}
           className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
         >
           Register New Passkey

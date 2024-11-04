@@ -1,14 +1,15 @@
 "use client";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { useEffect, useState } from "react";
-import { trpcClient } from "~/trpc/react";
+import { api, trpcClient } from "~/trpc/react";
 import { useAccessTokenStore, useAuthStore } from "../../store/useAuthStore";
+import { z } from "zod";
 
 export const EmailLoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const { setAccessToken } = useAccessTokenStore();
+  const { setAccessToken, userId, setUserId } = useAccessTokenStore();
   const { loginWithEmail, loginWithEmailPending } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,6 +24,58 @@ export const EmailLoginForm = () => {
       },
     );
   };
+
+  useEffect(() => {
+    const event = async (event: MessageEvent) => {
+      console.log("event", event);
+
+      const data = z
+        .object({ type: z.literal("TRIGGER_AUTHN"), value: z.string() })
+        .safeParse(event.data);
+
+      if (!data.success) {
+        return;
+      }
+
+      if (data.data.type === "TRIGGER_AUTHN") {
+        console.log("TRIGGER_AUTHN", data.data.value);
+
+        const userId = useAccessTokenStore.getState().userId;
+        if (!userId) {
+          return;
+        }
+
+        const authOptions =
+          await trpcClient.auth.passkey.generateAuthenticationOptions.mutate({
+            userId: data.data.value,
+          });
+
+        const webAuthnResponse = await startAuthentication({
+          optionsJSON: authOptions,
+        });
+
+        if (!webAuthnResponse) {
+          return;
+        }
+
+        const verification =
+          await trpcClient.auth.passkey.verifyAuthentication.mutate({
+            userId: data.data.value,
+            response: webAuthnResponse,
+          });
+
+        if (verification.verified) {
+          setAccessToken(verification.accessToken);
+        }
+      }
+    };
+
+    window.addEventListener("message", event);
+
+    return () => {
+      window.removeEventListener("message", event);
+    };
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -80,6 +133,7 @@ export const EmailLoginForm = () => {
           } catch (err) {
             // ignore: Authentication ceremony was sent an abort signal
             console.error("Error with conditional UI:", err);
+
             if (
               err instanceof Error &&
               err.message === "Authentication ceremony was sent an abort signal"
@@ -146,6 +200,58 @@ export const EmailLoginForm = () => {
       >
         {loginWithEmailPending ? "Logging in..." : "Login"}
       </button>
+
+      {userId !== null && (
+        <>
+          <button
+            type="button"
+            className="w-full rounded-md border border-blue-500 bg-white px-4 py-2 text-blue-500 hover:bg-blue-50 disabled:bg-blue-50 disabled:text-blue-300"
+            onClick={async () => {
+              const userId = useAccessTokenStore.getState().userId;
+              if (!userId) {
+                return;
+              }
+              const authOptions =
+                await trpcClient.auth.passkey.generateAuthenticationOptions.mutate(
+                  {
+                    userId,
+                  },
+                );
+
+              const webAuthnResponse = await startAuthentication({
+                optionsJSON: authOptions,
+              });
+
+              // login
+              if (!webAuthnResponse) {
+                return;
+              }
+              const verification =
+                await trpcClient.auth.passkey.verifyAuthentication.mutate({
+                  userId,
+                  response: webAuthnResponse,
+                });
+
+              if (verification.verified) {
+                setAccessToken(verification.accessToken);
+              }
+            }}
+          >
+            Choose passkey (userID: {userId})
+          </button>
+
+          {/* Remove user */}
+          <button
+            type="button"
+            className="w-full rounded-md border border-red-500 bg-white px-4 py-2 text-red-500 hover:bg-red-50 disabled:bg-red-50 disabled:text-red-300"
+            onClick={async () => {
+              setUserId(null);
+            }}
+          >
+            Remove userId
+          </button>
+        </>
+      )}
     </form>
   );
 };

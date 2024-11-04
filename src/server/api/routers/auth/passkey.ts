@@ -55,6 +55,7 @@ export const passkeyRouter = createTRPCRouter({
         rpName,
         rpID,
         userName: user.username,
+        userDisplayName: user.username,
         timeout: 60000,
         attestationType: "none",
         excludeCredentials: user.Provider.map((cred) => {
