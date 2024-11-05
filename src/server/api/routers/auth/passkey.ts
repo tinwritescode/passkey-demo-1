@@ -70,7 +70,7 @@ export const passkeyRouter = createTRPCRouter({
           };
         }).filter((x): x is NonNullable<typeof x> => x !== null),
         authenticatorSelection: {
-          residentKey: "discouraged",
+          residentKey: "preferred",
           userVerification: "preferred",
         },
         supportedAlgorithmIDs: [-7, -257],
@@ -83,7 +83,7 @@ export const passkeyRouter = createTRPCRouter({
         `user:${ctxUser.userId}:currentChallenge`,
         options.challenge,
         "EX",
-        60, // 1 minute
+        60 * 30, // 30 minutes
       );
 
       return options;

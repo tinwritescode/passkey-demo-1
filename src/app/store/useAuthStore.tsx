@@ -1,7 +1,8 @@
 "use client";
+import { startRegistration } from "@simplewebauthn/browser";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { api } from "~/trpc/react";
+import { api, trpcClient } from "~/trpc/react";
 
 export const useAccessTokenStore = create<{
   accessToken: string | null;
@@ -34,17 +35,36 @@ export const useAuthStore = () => {
 
   const { mutate: registerWithEmail, isPending: registerWithEmailPending } =
     api.auth.email.register.useMutation({
-      onSuccess: (data) => {
+      onSuccess: async (data) => {
         setAccessToken(data.accessToken);
         setUserId(data.user.userId);
 
+        // auto register passkey
+        const authOptions =
+          await trpcClient.auth.passkey.generateRegistrationOptions.mutate();
+
+        console.log(authOptions);
+
+        const webAuthnResponse = await startRegistration({
+          optionsJSON: authOptions,
+          useAutoRegister: true,
+        });
+
+        console.log(`webAuthnResponse`, webAuthnResponse);
+
+        const verification =
+          await trpcClient.auth.passkey.verifyRegistration.mutate({
+            response: webAuthnResponse,
+          });
+
+        console.log(`verification`, verification);
         void utils.invalidate();
       },
     });
 
   const { mutate: loginWithEmail, isPending: loginWithEmailPending } =
     api.auth.email.login.useMutation({
-      onSuccess: (data) => {
+      onSuccess: async (data) => {
         setAccessToken(data.accessToken);
         setUserId(data.user.userId);
 
