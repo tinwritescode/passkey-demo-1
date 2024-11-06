@@ -18,28 +18,34 @@ export const LoggedIn = () => {
 
   const registerPasskey = async () => {
     toast.success("Registration triggered");
-    const authOptions =
-      await trpcClient.auth.passkey.generateRegistrationOptions.mutate();
+    try {
+      const authOptions =
+        await trpcClient.auth.passkey.generateRegistrationOptions.mutate();
 
-    const webAuthnResponse = await startRegistration({
-      optionsJSON: authOptions,
-    });
-
-    if (!webAuthnResponse) {
-      return;
-    }
-
-    const verification =
-      await trpcClient.auth.passkey.verifyRegistration.mutate({
-        response: webAuthnResponse,
+      const webAuthnResponse = await startRegistration({
+        optionsJSON: authOptions,
       });
 
-    if (!verification.verified) {
-      toast.error("Passkey registration failed");
-      return;
-    }
+      if (!webAuthnResponse) {
+        return;
+      }
 
-    toast.success("Passkey registered");
+      const verification =
+        await trpcClient.auth.passkey.verifyRegistration.mutate({
+          response: webAuthnResponse,
+        });
+
+      if (!verification.verified) {
+        toast.error("Passkey registration failed");
+        return;
+      }
+
+      toast.success("Passkey registered");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to register passkey",
+      );
+    }
   };
 
   useEffect(() => {
