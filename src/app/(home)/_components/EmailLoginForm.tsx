@@ -11,7 +11,7 @@ export const EmailLoginForm = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { setAccessToken, userId, setUserId } = useAccessTokenStore();
-  const { loginWithEmail, loginWithEmailPending, isLoggedIn } = useAuthStore();
+  const { loginWithEmail, loginWithEmailPending } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
