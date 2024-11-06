@@ -1,16 +1,17 @@
 "use client";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { useEffect, useState } from "react";
-import { api, trpcClient } from "~/trpc/react";
-import { useAccessTokenStore, useAuthStore } from "../../store/useAuthStore";
+import toast from "react-hot-toast";
 import { z } from "zod";
+import { trpcClient } from "~/trpc/react";
+import { useAccessTokenStore, useAuthStore } from "../../store/useAuthStore";
 
 export const EmailLoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { setAccessToken, userId, setUserId } = useAccessTokenStore();
-  const { loginWithEmail, loginWithEmailPending } = useAuthStore();
+  const { loginWithEmail, loginWithEmailPending, isLoggedIn } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,38 +26,49 @@ export const EmailLoginForm = () => {
     );
   };
 
-  const verifiyAndLogin = async ({ userId }: { userId: string }) => {
-    const authOptions =
-      await trpcClient.auth.passkey.generateAuthenticationOptions.mutate({
-        userId,
+  const verifiyAndLogin = async ({
+    userId = null,
+  }: {
+    userId: string | null;
+  }) => {
+    try {
+      const authOptions =
+        await trpcClient.auth.passkey.generateAuthenticationOptions.mutate({
+          userId: userId,
+        });
+
+      const webAuthnResponse = await startAuthentication({
+        optionsJSON: authOptions,
       });
 
-    const webAuthnResponse = await startAuthentication({
-      optionsJSON: authOptions,
-    });
+      if (!webAuthnResponse) {
+        return;
+      }
 
-    if (!webAuthnResponse) {
-      return;
-    }
+      const verification =
+        await trpcClient.auth.passkey.verifyAuthentication.mutate({
+          response: webAuthnResponse,
+          challenge: authOptions.challenge,
+        });
 
-    const verification =
-      await trpcClient.auth.passkey.verifyAuthentication.mutate({
-        userId,
-        response: webAuthnResponse,
-      });
-
-    if (verification.verified) {
-      setAccessToken(verification.accessToken);
+      if (verification.verified) {
+        setAccessToken(verification.accessToken);
+      }
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to login with passkey",
+      );
     }
   };
 
   // from parent: parent -> iframe
   useEffect(() => {
     const event = async (event: MessageEvent) => {
-      console.log("event", event);
-
       const data = z
-        .object({ type: z.literal("TRIGGER_AUTHN"), value: z.string() })
+        .object({
+          type: z.enum(["TRIGGER_AUTHN"]),
+          value: z.string(),
+        })
         .safeParse(event.data);
 
       // we don't use the value for now, just for testing that it should be passed by the parent
@@ -65,14 +77,14 @@ export const EmailLoginForm = () => {
         return;
       }
 
+      console.log("event", event);
+
       if (data.data.type === "TRIGGER_AUTHN") {
-        console.log("TRIGGER_AUTHN", data.data.value);
+        console.log("TRIGGER_AUTHN");
+
+        toast.success("Authentication triggered");
 
         const userId = useAccessTokenStore.getState().userId;
-        if (!userId) {
-          return;
-        }
-
         verifiyAndLogin({ userId });
       }
     };
@@ -104,14 +116,8 @@ export const EmailLoginForm = () => {
 
         if (data.data.type === "TRIGGER_AUTHN") {
           console.log("Received authentication trigger:", data.data.value);
-          // Handle the authentication logic here
 
-          // the same logic as in useEffect above
           const userId = useAccessTokenStore.getState().userId;
-          if (!userId) {
-            return;
-          }
-
           verifiyAndLogin({ userId });
         }
       } catch (error) {
@@ -176,8 +182,8 @@ export const EmailLoginForm = () => {
 
             const verification =
               await trpcClient.auth.passkey.verifyAuthentication.mutate({
-                userId,
                 response: webAuthnResponse,
+                challenge: authOptions.challenge,
               });
 
             if (verification.verified) {
@@ -279,10 +285,11 @@ export const EmailLoginForm = () => {
               if (!webAuthnResponse) {
                 return;
               }
+
               const verification =
                 await trpcClient.auth.passkey.verifyAuthentication.mutate({
-                  userId,
                   response: webAuthnResponse,
+                  challenge: authOptions.challenge,
                 });
 
               if (verification.verified) {

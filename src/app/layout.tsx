@@ -1,5 +1,5 @@
 import "~/styles/globals.css";
-
+import { Toaster } from "react-hot-toast";
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
 
@@ -17,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${GeistSans.variable}`}>
       <body>
+        <Toaster />
         <TRPCReactProvider>{children}</TRPCReactProvider>
       </body>
     </html>

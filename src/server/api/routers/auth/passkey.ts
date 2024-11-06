@@ -22,6 +22,7 @@ import { db } from "../../../db";
 import jwtService from "../../services/jwt";
 import redisService from "../../services/redis";
 import { env } from "../../../../env";
+import { TRPCError } from "@trpc/server";
 
 // These would typically come from environment variables
 const rpID = env.NEXT_PUBLIC_RP_ID;
@@ -162,51 +163,47 @@ export const passkeyRouter = createTRPCRouter({
     }),
 
   generateAuthenticationOptions: publicProcedure
-    .input(z.object({ userId: z.string() }))
-    .mutation(async ({ input }) => {
-      const user = await db.user.findUniqueOrThrow({
-        where: {
-          id: input.userId,
-        },
-        include: {
-          Provider: {
+    .input(z.object({ userId: z.string().nullable() }))
+    .mutation(async ({ input: { userId } }) => {
+      const user = userId
+        ? await db.user.findUnique({
             where: {
-              type: "WEB_AUTHN_CREDENTIAL",
+              id: userId,
             },
             include: {
-              WebAuthnCredential: true,
+              Provider: {
+                where: {
+                  type: "WEB_AUTHN_CREDENTIAL",
+                },
+                include: {
+                  WebAuthnCredential: true,
+                },
+              },
             },
-          },
-        },
-      });
+          })
+        : null;
 
       const opts: GenerateAuthenticationOptionsOpts = {
         timeout: 60000,
-        allowCredentials: user.Provider.map((cred) => {
-          if (!cred.WebAuthnCredential?.id) {
-            return null;
-          }
+        allowCredentials: user
+          ? user.Provider.map((cred) => {
+              if (!cred.WebAuthnCredential?.id) {
+                return null;
+              }
 
-          return {
-            id: cred.WebAuthnCredential.id,
-            type: "public-key",
-            transports: cred.WebAuthnCredential
-              .transports as AuthenticatorTransportFuture[],
-          };
-        }).filter((x): x is NonNullable<typeof x> => x !== null),
+              return {
+                id: cred.WebAuthnCredential.id,
+                type: "public-key",
+                transports: cred.WebAuthnCredential
+                  .transports as AuthenticatorTransportFuture[],
+              };
+            }).filter((x): x is NonNullable<typeof x> => x !== null)
+          : [],
         userVerification: "preferred",
         rpID,
       };
 
       const options = await generateAuthenticationOptions(opts);
-
-      // Store challenge
-      await redisService.redis.set(
-        `user:${input.userId}:currentChallenge`,
-        options.challenge,
-        "EX",
-        60, // 1 minute
-      );
 
       return options;
     }),
@@ -214,47 +211,44 @@ export const passkeyRouter = createTRPCRouter({
   verifyAuthentication: publicProcedure
     .input(
       z.object({
-        userId: z.string(),
         response: z.custom<AuthenticationResponseJSON>(),
+        challenge: z.string(),
       }),
     )
-    .mutation(async ({ input: { userId, response } }) => {
-      const user = await db.user.findFirstOrThrow({
+    .mutation(async ({ input: { response, challenge: currentChallenge } }) => {
+      const credential = await db.webAuthnCredential.findUnique({
         where: {
-          id: userId,
+          id: response.id,
         },
         include: {
           Provider: {
             include: {
-              WebAuthnCredential: true,
-              EmailCredential: true,
+              User: true,
             },
           },
         },
       });
 
-      const currentChallenge = await redisService.redis.get(
-        `user:${userId}:currentChallenge`,
-      );
-
-      if (!currentChallenge) {
-        throw new Error("No challenge found for user");
-      }
-
-      const credential = user.Provider.find(
-        (cred) => cred.WebAuthnCredential?.id === response.id,
-      )?.WebAuthnCredential;
-
       if (!credential) {
-        throw new Error("Authenticator is not registered with this site");
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Authenticator is not registered with this site",
+        });
       }
 
-      const email = user.Provider.find((cred) => cred.EmailCredential !== null)
-        ?.EmailCredential?.email;
+      const emailCredential = await db.emailCredential.findFirst({
+        where: {
+          Provider: {
+            userId: credential.Provider.User.id,
+          },
+        },
+      });
 
-      if (!email) {
+      if (!emailCredential) {
         throw new Error("Email not found");
       }
+
+      const userId = credential.Provider.User.id;
 
       try {
         const verification = await verifyAuthenticationResponse({
@@ -282,12 +276,10 @@ export const passkeyRouter = createTRPCRouter({
           });
         }
 
-        await redisService.redis.del(`user:${userId}:currentChallenge`);
-
         const accessToken = jwtService.createAccessToken({
-          userId,
-          email,
-          username: user.username,
+          userId: userId,
+          email: emailCredential.email,
+          username: credential.Provider.User.username,
         });
 
         return {
