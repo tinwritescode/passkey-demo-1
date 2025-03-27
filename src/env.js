@@ -23,6 +23,7 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_RP_ID: z.string(),
     NEXT_PUBLIC_EXPECTED_ORIGIN: z.string(),
+    NEXT_PUBLIC_ALLOWED_ORIGINS: z.string().optional(),
   },
 
   /**
@@ -36,6 +37,7 @@ export const env = createEnv({
     REDIS_URL: process.env.REDIS_URL,
     NEXT_PUBLIC_RP_ID: process.env.NEXT_PUBLIC_RP_ID,
     NEXT_PUBLIC_EXPECTED_ORIGIN: process.env.NEXT_PUBLIC_EXPECTED_ORIGIN,
+    NEXT_PUBLIC_ALLOWED_ORIGINS: process.env.NEXT_PUBLIC_ALLOWED_ORIGINS,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
